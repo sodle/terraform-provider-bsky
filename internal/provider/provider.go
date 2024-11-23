@@ -5,88 +5,192 @@ package provider
 
 import (
 	"context"
-	"net/http"
+	"os"
+
+	"github.com/bluesky-social/indigo/api/atproto"
+	"github.com/bluesky-social/indigo/xrpc"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/function"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// Ensure ScaffoldingProvider satisfies various provider interfaces.
-var _ provider.Provider = &ScaffoldingProvider{}
-var _ provider.ProviderWithFunctions = &ScaffoldingProvider{}
+var _ provider.Provider = &bskyProvider{}
 
-// ScaffoldingProvider defines the provider implementation.
-type ScaffoldingProvider struct {
+// bskyProvider defines the provider implementation.
+type bskyProvider struct {
 	// version is set to the provider version on release, "dev" when the
 	// provider is built and ran locally, and "test" when running acceptance
 	// testing.
 	version string
 }
 
-// ScaffoldingProviderModel describes the provider data model.
-type ScaffoldingProviderModel struct {
-	Endpoint types.String `tfsdk:"endpoint"`
+// bskyProviderModel maps provider schema data to a Go type.
+type bskyProviderModel struct {
+	PDSHost  types.String `tfsdk:"pds_host"`
+	Handle   types.String `tfsdk:"handle"`
+	Password types.String `tfsdk:"password"`
 }
 
-func (p *ScaffoldingProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
-	resp.TypeName = "scaffolding"
+func (p *bskyProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "bsky"
 	resp.Version = p.version
 }
 
-func (p *ScaffoldingProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
+func (p *bskyProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"endpoint": schema.StringAttribute{
-				MarkdownDescription: "Example provider attribute",
+			"pds_host": schema.StringAttribute{
+				MarkdownDescription: "Base URL of your Personal Data Server (PDS). For most people, this is `https://bsky.social/`.",
+				Optional:            true,
+			},
+			"handle": schema.StringAttribute{
+				MarkdownDescription: "Your Bluesky handle, without the `@`.",
+				Optional:            true,
+			},
+			"password": schema.StringAttribute{
+				MarkdownDescription: "Your Bluesky password. Use an [app password](https://bsky.app/settings/app-passwords) for added security.",
 				Optional:            true,
 			},
 		},
 	}
 }
 
-func (p *ScaffoldingProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	var data ScaffoldingProviderModel
+func (p *bskyProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+	// Retrieve provider data from configuration
+	var config bskyProviderModel
+	diags := req.Config.Get(ctx, &config)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
-	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+	if config.PDSHost.IsUnknown() {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("pds_host"),
+			"Unknown Bluesky PDS host",
+			"The provider cannot create the Bluesky API client as there is an unknown value for the Bluesky PDS host. "+
+				"Either target apply the source of the value first, set the value statically in the configuration, or use the BSKY_PDS_HOST environment variable.",
+		)
+	}
+	if config.Handle.IsUnknown() {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("handle"),
+			"Unknown Bluesky handle",
+			"The provider cannot create the Bluesky API client as there is an unknown value for the Bluesky handle. "+
+				"Either target apply the source of the value first, set the value statically in the configuration, or use the BSKY_HANDLE environment variable.",
+		)
+	}
+	if config.Password.IsUnknown() {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("password"),
+			"Unknown Bluesky password",
+			"The provider cannot create the Bluesky API client as there is an unknown value for the Bluesky password. "+
+				"Either target apply the source of the value first, set the value statically in the configuration, or use the BSKY_PASSWORD environment variable.",
+		)
+	}
 
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Configuration values are now available.
-	// if data.Endpoint.IsNull() { /* ... */ }
+	// Default values to environment variables, but override
+	// with Terraform configuration value if set.
 
-	// Example client configuration for data sources and resources
-	client := http.DefaultClient
+	pdsHost := os.Getenv("BSKY_PDS_HOST")
+	handle := os.Getenv("BSKY_HANDLE")
+	password := os.Getenv("BSKY_PASSWORD")
+
+	if !config.PDSHost.IsNull() {
+		pdsHost = config.PDSHost.ValueString()
+	}
+
+	if !config.Handle.IsNull() {
+		handle = config.Handle.ValueString()
+	}
+
+	if !config.Password.IsNull() {
+		password = config.Password.ValueString()
+	}
+
+	if pdsHost == "" {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("pds_host"),
+			"Missing Bluesky PDS host",
+			"The provider cannot create the Bluesky API client as there is a missing or empty value for the Bluesky PDS host. "+
+				"Set the value in the configuration or use the BSKY_PDS_HOST environment variable."+
+				"If either is already set, ensure the value is not empty.",
+		)
+	}
+	if handle == "" {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("handle"),
+			"Missing Bluesky handle",
+			"The provider cannot create the Bluesky API client as there is a missing or empty value for the Bluesky handle. "+
+				"Set the value in the configuration or use the BSKY_HANDLE environment variable."+
+				"If either is already set, ensure the value is not empty.",
+		)
+	}
+	if password == "" {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("password"),
+			"Missing Bluesky password",
+			"The provider cannot create the Bluesky API client as there is a missing or empty value for the Bluesky password. "+
+				"Set the value in the configuration or use the BSKY_PASSWORD environment variable."+
+				"If either is already set, ensure the value is not empty.",
+		)
+	}
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Create a new Bluesky client with the configuration values, and log in
+	client := &xrpc.Client{
+		Host: pdsHost,
+	}
+	authInfo, err := atproto.ServerCreateSession(ctx, client, &atproto.ServerCreateSession_Input{
+		Identifier: handle,
+		Password:   password,
+	})
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Unable to create Bluesky API client",
+			"An unexpected error occurred when creating the Bluesky API client. "+
+				"If the error is not clear, please contact the provider developers.\n\n"+
+				"XRPC client error: "+err.Error(),
+		)
+	}
+
+	client.Auth = &xrpc.AuthInfo{
+		AccessJwt:  authInfo.AccessJwt,
+		RefreshJwt: authInfo.RefreshJwt,
+		Did:        authInfo.Did,
+		Handle:     authInfo.Handle,
+	}
+
+	// Make the Bluesky client available during DataSource and Resource
+	// type Configure methods.
 	resp.DataSourceData = client
 	resp.ResourceData = client
 }
 
-func (p *ScaffoldingProvider) Resources(ctx context.Context) []func() resource.Resource {
-	return []func() resource.Resource{
-		NewExampleResource,
-	}
+func (p *bskyProvider) Resources(ctx context.Context) []func() resource.Resource {
+	return nil
 }
 
-func (p *ScaffoldingProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
+func (p *bskyProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		NewExampleDataSource,
-	}
-}
-
-func (p *ScaffoldingProvider) Functions(ctx context.Context) []func() function.Function {
-	return []func() function.Function{
-		NewExampleFunction,
+		NewListDataSource,
 	}
 }
 
 func New(version string) func() provider.Provider {
 	return func() provider.Provider {
-		return &ScaffoldingProvider{
+		return &bskyProvider{
 			version: version,
 		}
 	}
