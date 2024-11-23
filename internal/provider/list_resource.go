@@ -7,10 +7,13 @@ import (
 
 	"github.com/bluesky-social/indigo/api/atproto"
 	"github.com/bluesky-social/indigo/api/bsky"
+	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/bluesky-social/indigo/lex/util"
 	"github.com/bluesky-social/indigo/xrpc"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -51,7 +54,9 @@ func (r *listResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Computed: true,
 			},
 			"uri": schema.StringAttribute{
-				Computed: true,
+				Computed: true, PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required: true,
@@ -132,6 +137,7 @@ func (l *listResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 
 	// Overwrite with refreshed state
 	state.Cid = types.StringValue(list.List.Cid)
+	state.Uri = types.StringValue(list.List.Uri)
 	state.Name = types.StringValue(list.List.Name)
 	state.Purpose = types.StringValue(*list.List.Purpose)
 	state.Description = types.StringValue(*list.List.Description)
@@ -146,6 +152,63 @@ func (l *listResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 
 // Update updates the resource and sets the updated Terraform state on success.
 func (l *listResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	// Retrieve values from a plan
+	var plan listResourceModel
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	if diags.HasError() {
+		return
+	}
+
+	// Generate API request body from plan
+	uri, err := syntax.ParseATURI(plan.Uri.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Invalid list URI",
+			"Could not parse Bluesky list URI "+plan.Uri.ValueString()+": "+err.Error(),
+		)
+		return
+	}
+	record, err := atproto.RepoGetRecord(ctx, l.client, "", uri.Collection().String(), uri.Authority().String(), uri.RecordKey().String())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Failed to retrieve list",
+			"Could not retrive the current state of the list "+plan.Uri.ValueString()+": "+err.Error(),
+		)
+		return
+	}
+	list := record.Value.Val.(*bsky.GraphList)
+	list.Name = plan.Name.ValueString()
+	list.Purpose = plan.Purpose.ValueStringPointer()
+	list.Description = plan.Description.ValueStringPointer()
+
+	// Update existing list
+	putRecordInput := &atproto.RepoPutRecord_Input{
+		Collection: uri.Collection().String(),
+		Repo:       uri.Authority().String(),
+		Rkey:       uri.RecordKey().String(),
+		SwapRecord: record.Cid,
+		Record: &util.LexiconTypeDecoder{
+			Val: list,
+		},
+	}
+	updatedRecord, err := atproto.RepoPutRecord(ctx, l.client, putRecordInput)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Failed to update list",
+			"Could not update list "+plan.Uri.ValueString()+": "+err.Error(),
+		)
+		return
+	}
+
+	// Update resource state
+	plan.Cid = types.StringValue(updatedRecord.Cid)
+
+	diags = resp.State.Set(ctx, plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
 // Delete deletes the resource and removes the Terraform state on success.
