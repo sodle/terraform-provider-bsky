@@ -191,7 +191,9 @@ func (p *bskyProvider) Configure(ctx context.Context, req provider.ConfigureRequ
 }
 
 func (p *bskyProvider) Resources(ctx context.Context) []func() resource.Resource {
-	return nil
+	return []func() resource.Resource{
+		NewListResource,
+	}
 }
 
 func (p *bskyProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
