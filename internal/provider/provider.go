@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 var _ provider.Provider = &bskyProvider{}
@@ -60,6 +61,8 @@ func (p *bskyProvider) Schema(ctx context.Context, req provider.SchemaRequest, r
 }
 
 func (p *bskyProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+	tflog.Info(ctx, "Configuring Bluesky client")
+
 	// Retrieve provider data from configuration
 	var config bskyProviderModel
 	diags := req.Config.Get(ctx, &config)
@@ -148,6 +151,13 @@ func (p *bskyProvider) Configure(ctx context.Context, req provider.ConfigureRequ
 		return
 	}
 
+	ctx = tflog.SetField(ctx, "bluesky_pds_host", pdsHost)
+	ctx = tflog.SetField(ctx, "bluesky_handle", handle)
+	ctx = tflog.SetField(ctx, "bluesky_password", password)
+	ctx = tflog.MaskFieldValuesWithFieldKeys(ctx, "bluesky_password")
+
+	tflog.Debug(ctx, "Creating Bluesky client")
+
 	// Create a new Bluesky client with the configuration values, and log in
 	client := &xrpc.Client{
 		Host: pdsHost,
@@ -176,6 +186,8 @@ func (p *bskyProvider) Configure(ctx context.Context, req provider.ConfigureRequ
 	// type Configure methods.
 	resp.DataSourceData = client
 	resp.ResourceData = client
+
+	tflog.Info(ctx, "Configured Bluesky client", map[string]any{"success": true})
 }
 
 func (p *bskyProvider) Resources(ctx context.Context) []func() resource.Resource {
