@@ -10,6 +10,7 @@ import (
 	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/bluesky-social/indigo/lex/util"
 	"github.com/bluesky-social/indigo/xrpc"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -19,8 +20,9 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ resource.Resource              = &listResource{}
-	_ resource.ResourceWithConfigure = &listResource{}
+	_ resource.Resource                = &listResource{}
+	_ resource.ResourceWithConfigure   = &listResource{}
+	_ resource.ResourceWithImportState = &listResource{}
 )
 
 // NewListResource is a helper function to simplify the provider implementation.
@@ -213,6 +215,35 @@ func (l *listResource) Update(ctx context.Context, req resource.UpdateRequest, r
 
 // Delete deletes the resource and removes the Terraform state on success.
 func (l *listResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	// Retrieve values from state
+	var state listResourceModel
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Delete existing list
+	uri, err := syntax.ParseATURI(state.Uri.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Invalid list URI",
+			"Could not parse Bluesky list URI "+state.Uri.ValueString()+": "+err.Error(),
+		)
+		return
+	}
+	deleteRequest := &atproto.RepoDeleteRecord_Input{
+		Collection: uri.Collection().String(),
+		Repo:       uri.Authority().String(),
+		Rkey:       uri.RecordKey().String(),
+	}
+	_, err = atproto.RepoDeleteRecord(ctx, l.client, deleteRequest)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error deleting list",
+			"Could not delete list, error: "+err.Error(),
+		)
+	}
 }
 
 // Configure adds the provider configured client to the resource.
@@ -235,4 +266,9 @@ func (l *listResource) Configure(_ context.Context, req resource.ConfigureReques
 	}
 
 	l.client = client
+}
+
+func (l *listResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	// Retrieve import ID and save to id attribute
+	resource.ImportStatePassthroughID(ctx, path.Root("uri"), req, resp)
 }
