@@ -30,7 +30,7 @@ func NewListItemResource() resource.Resource {
 	return &listItemResource{}
 }
 
-// listItemResource is the resource implementation
+// listItemResource is the resource implementation.
 type listItemResource struct {
 	client *xrpc.Client
 }
@@ -41,7 +41,7 @@ type listItemResourceModel struct {
 	SubjectDid types.String `tfsdk:"subject_did"`
 }
 
-// Metadata returns the resource type name
+// Metadata returns the resource type name.
 func (l *listItemResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_list_item"
 }
