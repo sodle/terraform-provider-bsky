@@ -109,7 +109,7 @@ func (d *listDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 func (d *listDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var data listDataSourceModel
 
-	// Read Terraform configuration data into the model
+	// Read Terraform configuration data into the model.
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 
 	uri := data.Uri.ValueString()

@@ -30,7 +30,7 @@ func NewListResource() resource.Resource {
 	return &listResource{}
 }
 
-// listResource is the resource implementation
+// listResource is the resource implementation.
 type listResource struct {
 	client *xrpc.Client
 }
@@ -43,7 +43,7 @@ type listResourceModel struct {
 	Description types.String `tfsdk:"description"`
 }
 
-// Metadata returns the resource type name
+// Metadata returns the resource type name.
 func (l *listResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_list"
 }
@@ -80,7 +80,7 @@ func (r *listResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 }
 
 func (l *listResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	// Retrieve values from a plan
+	// Retrieve values from a plan.
 	var plan listResourceModel
 	diags := req.Plan.Get(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
@@ -88,7 +88,7 @@ func (l *listResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	// Generate API request body from plan
+	// Generate API request body from plan.
 	list := &bsky.GraphList{
 		Name:        plan.Name.ValueString(),
 		Purpose:     plan.Purpose.ValueStringPointer(),
@@ -101,7 +101,7 @@ func (l *listResource) Create(ctx context.Context, req resource.CreateRequest, r
 		Record:     &util.LexiconTypeDecoder{Val: list},
 	}
 
-	// Create new list
+	// Create new list.
 	record, err := atproto.RepoCreateRecord(ctx, l.client, createRecordInput)
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -111,11 +111,11 @@ func (l *listResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	// Map response body to schema and populate Computed attribute values
+	// Map response body to schema and populate Computed attribute values.
 	plan.Cid = types.StringValue(record.Cid)
 	plan.Uri = types.StringValue(record.Uri)
 
-	// Set state to fully populated data
+	// Set state to fully populated data.
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -133,7 +133,7 @@ func (l *listResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	// Get refreshed list value from Bsky
+	// Get refreshed list value from Bsky.
 	list, err := bsky.GraphGetList(ctx, l.client, "", 1, state.Uri.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -143,14 +143,14 @@ func (l *listResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	// Overwrite with refreshed state
+	// Overwrite with refreshed state.
 	state.Cid = types.StringValue(list.List.Cid)
 	state.Uri = types.StringValue(list.List.Uri)
 	state.Name = types.StringValue(list.List.Name)
 	state.Purpose = types.StringValue(*list.List.Purpose)
 	state.Description = types.StringValue(*list.List.Description)
 
-	// Set refreshed state
+	// Set refreshed state.
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -168,7 +168,7 @@ func (l *listResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	// Generate API request body from plan
+	// Generate API request body from plan.
 	uri, err := syntax.ParseATURI(plan.Uri.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -190,7 +190,7 @@ func (l *listResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	list.Purpose = plan.Purpose.ValueStringPointer()
 	list.Description = plan.Description.ValueStringPointer()
 
-	// Update existing list
+	// Update existing list.
 	putRecordInput := &atproto.RepoPutRecord_Input{
 		Collection: uri.Collection().String(),
 		Repo:       uri.Authority().String(),
@@ -209,7 +209,7 @@ func (l *listResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	// Update resource state
+	// Update resource state.
 	plan.Cid = types.StringValue(updatedRecord.Cid)
 
 	diags = resp.State.Set(ctx, plan)
@@ -221,7 +221,7 @@ func (l *listResource) Update(ctx context.Context, req resource.UpdateRequest, r
 
 // Delete deletes the resource and removes the Terraform state on success.
 func (l *listResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	// Retrieve values from state
+	// Retrieve values from state.
 	var state listResourceModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -229,7 +229,7 @@ func (l *listResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		return
 	}
 
-	// Delete existing list
+	// Delete existing list.
 	uri, err := syntax.ParseATURI(state.Uri.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -275,6 +275,6 @@ func (l *listResource) Configure(_ context.Context, req resource.ConfigureReques
 }
 
 func (l *listResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	// Retrieve import ID and save to id attribute
+	// Retrieve import ID and save to id attribute.
 	resource.ImportStatePassthroughID(ctx, path.Root("uri"), req, resp)
 }

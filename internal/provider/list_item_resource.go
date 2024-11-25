@@ -76,7 +76,7 @@ func (r *listItemResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 }
 
 func (l *listItemResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	// Retrieve values from a plan
+	// Retrieve values from a plan.
 	var plan listItemResourceModel
 	diags := req.Plan.Get(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
@@ -84,7 +84,7 @@ func (l *listItemResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	// Generate API request body from plan
+	// Generate API request body from plan.
 	item := &bsky.GraphListitem{
 		List:      plan.ListUri.ValueString(),
 		Subject:   plan.SubjectDid.ValueString(),
@@ -96,7 +96,7 @@ func (l *listItemResource) Create(ctx context.Context, req resource.CreateReques
 		Record:     &util.LexiconTypeDecoder{Val: item},
 	}
 
-	// Create new list
+	// Create new list.
 	record, err := atproto.RepoCreateRecord(ctx, l.client, createRecordInput)
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -106,10 +106,10 @@ func (l *listItemResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	// Map response body to schema and populate Computed attribute values
+	// Map response body to schema and populate Computed attribute values.
 	plan.Uri = types.StringValue(record.Uri)
 
-	// Set state to fully populated data
+	// Set state to fully populated data.
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -119,7 +119,7 @@ func (l *listItemResource) Create(ctx context.Context, req resource.CreateReques
 
 // Read refreshes the Terraform state with the latest data.
 func (l *listItemResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	// Get current state
+	// Get current state.
 	var state listItemResourceModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -129,7 +129,7 @@ func (l *listItemResource) Read(ctx context.Context, req resource.ReadRequest, r
 
 	var foundItem *bsky.GraphDefs_ListItemView
 
-	// Get refreshed list value from Bsky
+	// Get refreshed list value from Bsky.
 	list, err := bsky.GraphGetList(ctx, l.client, "", 50, state.ListUri.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -173,7 +173,7 @@ func (l *listItemResource) Read(ctx context.Context, req resource.ReadRequest, r
 	state.ListUri = types.StringValue(list.List.Uri)
 	state.SubjectDid = types.StringValue(foundItem.Subject.Did)
 
-	// Set refreshed state
+	// Set refreshed state.
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -196,7 +196,7 @@ func (l *listItemResource) Delete(ctx context.Context, req resource.DeleteReques
 		return
 	}
 
-	// Delete existing list
+	// Delete existing list.
 	uri, err := syntax.ParseATURI(state.Uri.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -242,6 +242,6 @@ func (l *listItemResource) Configure(_ context.Context, req resource.ConfigureRe
 }
 
 func (l *listItemResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	// Retrieve import ID and save to id attribute
+	// Retrieve import ID and save to id attribute.
 	resource.ImportStatePassthroughID(ctx, path.Root("uri"), req, resp)
 }
