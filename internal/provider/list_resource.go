@@ -125,7 +125,7 @@ func (l *listResource) Create(ctx context.Context, req resource.CreateRequest, r
 
 // Read refreshes the Terraform state with the latest data.
 func (l *listResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	// Get current state
+	// Get current state.
 	var state listResourceModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -160,7 +160,7 @@ func (l *listResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 
 // Update updates the resource and sets the updated Terraform state on success.
 func (l *listResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	// Retrieve values from a plan
+	// Retrieve values from a plan.
 	var plan listResourceModel
 	diags := req.Plan.Get(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
@@ -181,11 +181,19 @@ func (l *listResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to retrieve list",
-			"Could not retrive the current state of the list "+plan.Uri.ValueString()+": "+err.Error(),
+			"Could not retrieve the current state of the list "+plan.Uri.ValueString()+": "+err.Error(),
 		)
 		return
 	}
-	list := record.Value.Val.(*bsky.GraphList)
+	list, ok := record.Value.Val.(*bsky.GraphList)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Failed to parse retrieved list",
+			"Could not cast the returned list into the expected type",
+		)
+		return
+	}
+
 	list.Name = plan.Name.ValueString()
 	list.Purpose = plan.Purpose.ValueStringPointer()
 	list.Description = plan.Description.ValueStringPointer()
