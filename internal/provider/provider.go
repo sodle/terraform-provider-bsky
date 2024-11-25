@@ -193,6 +193,7 @@ func (p *bskyProvider) Configure(ctx context.Context, req provider.ConfigureRequ
 func (p *bskyProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewListResource,
+		NewListItemResource,
 	}
 }
 
