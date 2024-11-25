@@ -11,8 +11,8 @@ provider "bsky" {
   handle   = "scoott.blog"
 }
 
-data "bsky_list" "test-list" {
-  uri = "at://did:plc:pmyqirafcp3jqdhrl7crpq7t/app.bsky.graph.list/3lam62tvlqz2l"
+data "bsky_list" "bossett-science" {
+  uri = "at://did:plc:jfhpnnst6flqway4eaeqzj2a/app.bsky.graph.list/3kvu7ygdzxr24"
 }
 
 output "list" {

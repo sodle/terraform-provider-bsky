@@ -49,21 +49,25 @@ func (l *listItemResource) Metadata(_ context.Context, req resource.MetadataRequ
 // Schema defines the schema for the resource.
 func (r *listItemResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		MarkdownDescription: "Manage users' membership on Bluesky lists",
 		Attributes: map[string]schema.Attribute{
 			"subject_did": schema.StringAttribute{
-				Required: true,
+				MarkdownDescription: "The DID of the user to add to the list",
+				Required:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"list_uri": schema.StringAttribute{
-				Required: true,
+				MarkdownDescription: "The URI of the list",
+				Required:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"uri": schema.StringAttribute{
-				Computed: true, PlanModifiers: []planmodifier.String{
+				MarkdownDescription: "Atproto URI",
+				Computed:            true, PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},

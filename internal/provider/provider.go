@@ -43,6 +43,7 @@ func (p *bskyProvider) Metadata(ctx context.Context, req provider.MetadataReques
 
 func (p *bskyProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		MarkdownDescription: "Manage Bluesky lists",
 		Attributes: map[string]schema.Attribute{
 			"pds_host": schema.StringAttribute{
 				MarkdownDescription: "Base URL of your Personal Data Server (PDS). For most people, this is `https://bsky.social/`.",
