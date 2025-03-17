@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     bsky = {
-      source = "sjodle/bsky"
+      source = "sodle/bsky"
     }
   }
 }

@@ -43,19 +43,22 @@ func (p *bskyProvider) Metadata(ctx context.Context, req provider.MetadataReques
 
 func (p *bskyProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manage Bluesky lists",
+		MarkdownDescription: "Manage Bluesky PDS",
 		Attributes: map[string]schema.Attribute{
 			"pds_host": schema.StringAttribute{
-				MarkdownDescription: "Base URL of your Personal Data Server (PDS). For most people, this is `https://bsky.social/`.",
-				Optional:            true,
+				MarkdownDescription: "Base URL of your Personal Data Server (PDS). For most people, this is `https://bsky.social/`." +
+					"\nCan also be set via the BSKY_PDS_HOST environment variable.",
+				Optional: true,
 			},
 			"handle": schema.StringAttribute{
-				MarkdownDescription: "Your Bluesky handle, without the `@`.",
-				Optional:            true,
+				MarkdownDescription: "Your Bluesky handle, without the `@`." +
+					"\nCan also be set via the BSKY_HANDLE environment variable.",
+				Optional: true,
 			},
 			"password": schema.StringAttribute{
-				MarkdownDescription: "Your Bluesky password. Use an [app password](https://bsky.app/settings/app-passwords) for added security.",
-				Optional:            true,
+				MarkdownDescription: "Your Bluesky password. Use an [app password](https://bsky.app/settings/app-passwords) for added security." +
+					"\nCan also be set via the BSKY_PASSWORD environment variable.",
+				Optional: true,
 			},
 		},
 	}
