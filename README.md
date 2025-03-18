@@ -5,9 +5,12 @@ https://registry.terraform.io/providers/sodle/bsky/latest/docs
 Specify your PDS host url, handle, and either the password for the handle or an [app password](https://bsky.app/settings/app-passwords) for added security.
 ```
 provider "bsky" {
-  pds_host = "https://bsky.social" // or set via the BSKY_PDS_HOST env var
-  handle   = "scoott.blog"         // or set via the BSKY_HANDLE   env var
-  password = "<password>"          // or set via the BSKY_PASSWORD env var
+  pds_host           = "https://bsky.social" // or set via the BSKY_PDS_HOST env var
+  handle             = "scoott.blog"         // or set via the BSKY_HANDLE   env var
+  password           = "<password>"          // or set via the BSKY_PASSWORD env var
+
+  // PDS admin password only needed for bsky_account creation
+  pds_admin_password = "<admin password>     // or set via the BSKY_ADMIN_PASSWORD env var
 }
 ```
 ## Building the provider

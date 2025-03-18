@@ -29,5 +29,7 @@ provider "bsky" {
 Can also be set via the BSKY_HANDLE environment variable.
 - `password` (String) Your Bluesky password. Use an [app password](https://bsky.app/settings/app-passwords) for added security.
 Can also be set via the BSKY_PASSWORD environment variable.
+- `pds_admin_password` (String) Admin password used when setting up the PDS. Used to manage account resources.
+Can also be set via the BSKY_ADMIN_PASSWORD environment variable.
 - `pds_host` (String) Base URL of your Personal Data Server (PDS). For most people, this is `https://bsky.social/`.
 Can also be set via the BSKY_PDS_HOST environment variable.
