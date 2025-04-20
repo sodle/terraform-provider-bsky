@@ -3,19 +3,20 @@
 page_title: "bsky Provider"
 subcategory: ""
 description: |-
-  Manage Bluesky lists
+  Manage Bluesky PDS
 ---
 
 # bsky Provider
 
-Manage Bluesky lists
+Manage Bluesky PDS
 
 ## Example Usage
 
 ```terraform
 provider "bsky" {
-  pds_host = "https://bsky.social"
-  handle   = "scoott.blog"
+  pds_host = "https://bsky.social" // or set via the BSKY_PDS_HOST env var
+  handle   = "scoott.blog"         // or set via the BSKY_HANDLE   env var
+  password = "<password>"          // or set via the BSKY_PASSWORD env var
 }
 ```
 
@@ -25,5 +26,10 @@ provider "bsky" {
 ### Optional
 
 - `handle` (String) Your Bluesky handle, without the `@`.
+Can also be set via the BSKY_HANDLE environment variable.
 - `password` (String) Your Bluesky password. Use an [app password](https://bsky.app/settings/app-passwords) for added security.
+Can also be set via the BSKY_PASSWORD environment variable.
+- `pds_admin_password` (String) Admin password used when setting up the PDS. Used to manage account resources.
+Can also be set via the BSKY_ADMIN_PASSWORD environment variable.
 - `pds_host` (String) Base URL of your Personal Data Server (PDS). For most people, this is `https://bsky.social/`.
+Can also be set via the BSKY_PDS_HOST environment variable.

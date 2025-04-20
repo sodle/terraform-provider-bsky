@@ -16,7 +16,7 @@ A datasource to retrieve lists and their contents
 terraform {
   required_providers {
     bsky = {
-      source = "sjodle/bsky"
+      source = "sodle/bsky"
     }
   }
 }

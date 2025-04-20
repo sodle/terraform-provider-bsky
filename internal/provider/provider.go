@@ -31,9 +31,10 @@ type bskyProvider struct {
 
 // bskyProviderModel maps provider schema data to a Go type.
 type bskyProviderModel struct {
-	PDSHost  types.String `tfsdk:"pds_host"`
-	Handle   types.String `tfsdk:"handle"`
-	Password types.String `tfsdk:"password"`
+	PDSHost          types.String `tfsdk:"pds_host"`
+	Handle           types.String `tfsdk:"handle"`
+	Password         types.String `tfsdk:"password"`
+	PDSAdminPassword types.String `tfsdk:"pds_admin_password"`
 }
 
 func (p *bskyProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -43,19 +44,27 @@ func (p *bskyProvider) Metadata(ctx context.Context, req provider.MetadataReques
 
 func (p *bskyProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manage Bluesky lists",
+		MarkdownDescription: "Manage Bluesky PDS",
 		Attributes: map[string]schema.Attribute{
 			"pds_host": schema.StringAttribute{
-				MarkdownDescription: "Base URL of your Personal Data Server (PDS). For most people, this is `https://bsky.social/`.",
-				Optional:            true,
+				MarkdownDescription: "Base URL of your Personal Data Server (PDS). For most people, this is `https://bsky.social/`." +
+					"\nCan also be set via the BSKY_PDS_HOST environment variable.",
+				Optional: true,
 			},
 			"handle": schema.StringAttribute{
-				MarkdownDescription: "Your Bluesky handle, without the `@`.",
-				Optional:            true,
+				MarkdownDescription: "Your Bluesky handle, without the `@`." +
+					"\nCan also be set via the BSKY_HANDLE environment variable.",
+				Optional: true,
 			},
 			"password": schema.StringAttribute{
-				MarkdownDescription: "Your Bluesky password. Use an [app password](https://bsky.app/settings/app-passwords) for added security.",
-				Optional:            true,
+				MarkdownDescription: "Your Bluesky password. Use an [app password](https://bsky.app/settings/app-passwords) for added security." +
+					"\nCan also be set via the BSKY_PASSWORD environment variable.",
+				Optional: true,
+			},
+			"pds_admin_password": schema.StringAttribute{
+				MarkdownDescription: "Admin password used when setting up the PDS. Used to manage account resources." +
+					"\nCan also be set via the BSKY_ADMIN_PASSWORD environment variable.",
+				Optional: true,
 			},
 		},
 	}
@@ -107,6 +116,7 @@ func (p *bskyProvider) Configure(ctx context.Context, req provider.ConfigureRequ
 	pdsHost := os.Getenv("BSKY_PDS_HOST")
 	handle := os.Getenv("BSKY_HANDLE")
 	password := os.Getenv("BSKY_PASSWORD")
+	pdsAdminpassword := os.Getenv("BSKY_ADMIN_PASSWORD")
 
 	if !config.PDSHost.IsNull() {
 		pdsHost = config.PDSHost.ValueString()
@@ -118,6 +128,10 @@ func (p *bskyProvider) Configure(ctx context.Context, req provider.ConfigureRequ
 
 	if !config.Password.IsNull() {
 		password = config.Password.ValueString()
+	}
+
+	if !config.PDSAdminPassword.IsNull() {
+		pdsAdminpassword = config.PDSAdminPassword.ValueString()
 	}
 
 	if pdsHost == "" {
@@ -155,13 +169,19 @@ func (p *bskyProvider) Configure(ctx context.Context, req provider.ConfigureRequ
 	ctx = tflog.SetField(ctx, "bluesky_pds_host", pdsHost)
 	ctx = tflog.SetField(ctx, "bluesky_handle", handle)
 	ctx = tflog.SetField(ctx, "bluesky_password", password)
+	ctx = tflog.SetField(ctx, "bluesky_pds_admin_password", pdsAdminpassword)
 	ctx = tflog.MaskFieldValuesWithFieldKeys(ctx, "bluesky_password")
+	ctx = tflog.MaskFieldValuesWithFieldKeys(ctx, "bluesky_pds_admin_password")
 
 	tflog.Debug(ctx, "Creating Bluesky client")
 
 	// Create a new Bluesky client with the configuration values, and log in
 	client := &xrpc.Client{
 		Host: pdsHost,
+	}
+	if pdsAdminpassword != "" {
+		// used by com.atproto.server.createInviteCode
+		client.AdminToken = &pdsAdminpassword
 	}
 	authInfo, err := atproto.ServerCreateSession(ctx, client, &atproto.ServerCreateSession_Input{
 		Identifier: handle,
@@ -193,6 +213,7 @@ func (p *bskyProvider) Configure(ctx context.Context, req provider.ConfigureRequ
 
 func (p *bskyProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
+		NewAccountResource,
 		NewListResource,
 		NewListItemResource,
 		NewStarterPackResource,
