@@ -1,3 +1,9 @@
+## 1.2.0
+
+FEATURES:
+
+- New resource: `bsky_account` (contribution by [@alangoldman](https://github.com/alangoldman))
+
 ## 1.1.0
 
 FEATURES:
