@@ -1,6 +1,8 @@
 module terraform-provider-bsky
 
-go 1.22.7
+go 1.23.0
+
+toolchain go1.24.1
 
 require (
 	github.com/bluesky-social/indigo v0.0.0-20250317190625-0d12453b662d
@@ -13,7 +15,7 @@ require (
 	github.com/carlmjohnson/versioninfo v0.22.5 // indirect
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/go-logr/logr v1.4.1 // indirect
+	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
@@ -24,8 +26,8 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
-	github.com/hashicorp/terraform-plugin-go v0.25.0 // indirect
-	github.com/hashicorp/terraform-registry-address v0.2.3 // indirect
+	github.com/hashicorp/terraform-plugin-go v0.26.0 // indirect
+	github.com/hashicorp/terraform-registry-address v0.2.4 // indirect
 	github.com/hashicorp/terraform-svchost v0.1.1 // indirect
 	github.com/hashicorp/yamux v0.1.1 // indirect
 	github.com/ipfs/bbloom v0.0.4 // indirect
@@ -55,7 +57,6 @@ require (
 	github.com/oklog/run v1.0.0 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/polydawn/refmt v0.89.1-0.20221221234430-40501e09de1f // indirect
-	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
