@@ -123,7 +123,7 @@ func (l *accountResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	// Generate API request body from plan. Adapted from the account migratio script:
+	// Generate API request body from plan. Adapted from the account migration script:
 	// https://github.com/bluesky-social/indigo/blob/main/cmd/goat/account_migrate.go
 	createRecordInput := atproto.ServerCreateAccount_Input{
 		Handle:     plan.Handle.ValueString(),
