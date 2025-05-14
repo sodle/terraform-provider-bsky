@@ -1,0 +1,46 @@
+services:
+    # Traefik container adapted from https://docs.modernleft.org/Docker-Images/bluesky-pds#traefik
+    traefik:
+        image: traefik:v3.4.0
+        hostname: example.com # the Traefik container should be reachable at the hostname so pdsadmin hits the Traefik container
+        command:
+            - --providers.docker=true
+            - --providers.docker.exposedbydefault=false
+            - --entrypoints.https.address=:443
+            - --certificatesresolvers.default.acme.tlschallenge=true
+            - --certificatesresolvers.default.acme.email=admin@example.com
+            - --certificatesresolvers.default.acme.storage=/certs/acme.json
+            - --providers.file.directory=/certs
+            - --providers.file.watch=true
+            - --providers.file.filename=/certs/traefik-dynamic.yml
+        ports:
+            - "443:443"
+        networks:
+            - proxy
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock:ro
+            - ./certs/traefik.crt:/certs/traefik.crt:ro
+            - ./certs/traefik.key:/certs/traefik.key:ro
+            - ./certs/traefik-dynamic.yml:/certs/traefik-dynamic.yml:ro
+
+    # PDS container adapted from https://github.com/bluesky-social/pds/blob/main/compose.yaml#L17
+    pds:
+        image: ghcr.io/bluesky-social/pds:latest # use the latest tag from the repo
+        networks:
+            - proxy
+        env_file:
+            - ./pds/pds.env
+        volumes:
+            - ./pds:/pds
+            - ./certs/traefik.crt:/usr/local/share/ca-certificates/traefik.crt:ro
+        labels:
+            traefik.enable: "true"
+            traefik.http.routers.bluesky-pds-secure.entrypoints: https
+            traefik.http.routers.bluesky-pds-secure.rule: HostRegexp(`^.+\.example\.com$$`) || Host(`example.com`)
+            traefik.http.routers.bluesky-pds-secure.tls: "true"
+            traefik.http.services.bluesky-pds.loadbalancer.server.scheme: http
+            traefik.http.services.bluesky-pds.loadbalancer.server.port: 3000
+
+networks:
+    proxy:
+        driver: bridge

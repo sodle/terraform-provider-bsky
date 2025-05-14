@@ -20,10 +20,6 @@ var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServe
 
 func testProviderPreCheck(t *testing.T) {
 	// Verify the required environment variables are set
-	if os.Getenv("TF_ACC") == "" {
-		t.Skip("Acceptance tests skipped unless TF_ACC is set")
-	}
-
 	v := os.Getenv("BSKY_PDS_HOST")
 	if v == "" {
 		t.Fatal("BSKY_PDS_HOST must be set for acceptance tests")
@@ -37,7 +33,7 @@ func testProviderPreCheck(t *testing.T) {
 	if v := os.Getenv("BSKY_PASSWORD"); v == "" {
 		t.Fatal("BSKY_PASSWORD must be set for acceptance tests")
 	}
-	if os.Getenv("BSKY_PDS_ADMIN_PASSWORD") == "" {
-		t.Fatal("BSKY_PDS_ADMIN_PASSWORD must be set for acceptance tests")
+	if os.Getenv("BSKY_ADMIN_PASSWORD") == "" {
+		t.Fatal("BSKY_ADMIN_PASSWORD must be set for acceptance tests")
 	}
 }
