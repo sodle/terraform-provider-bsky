@@ -123,13 +123,35 @@ func (d *listDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	data.Avatar = types.StringValue(*list.List.Avatar)
+	// Set all fields, using empty values for optional fields if nil
+	data.Avatar = types.StringValue("")
+	if list.List.Avatar != nil {
+		data.Avatar = types.StringValue(*list.List.Avatar)
+	}
+
 	data.Cid = types.StringValue(list.List.Cid)
-	data.Description = types.StringValue(*list.List.Description)
-	data.ListItemCount = types.Int64Value(*list.List.ListItemCount)
+
+	data.Description = types.StringValue("")
+	if list.List.Description != nil {
+		data.Description = types.StringValue(*list.List.Description)
+	}
+
+	data.ListItemCount = types.Int64Value(0)
+	if list.List.ListItemCount != nil {
+		data.ListItemCount = types.Int64Value(*list.List.ListItemCount)
+	}
+
 	data.Name = types.StringValue(list.List.Name)
-	data.Purpose = types.StringValue(*list.List.Purpose)
+
+	data.Purpose = types.StringValue("")
+	if list.List.Purpose != nil {
+		data.Purpose = types.StringValue(*list.List.Purpose)
+	}
+
 	data.Uri = types.StringValue(list.List.Uri)
+
+	// Initialize empty items slice to ensure it's never nil
+	data.Items = []listItemModel{}
 
 	for _, item := range list.Items {
 		listItemData := listItemModel{

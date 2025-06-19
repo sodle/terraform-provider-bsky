@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/bluesky-social/indigo/api/atproto"
@@ -242,6 +243,12 @@ func (l *listItemResource) Configure(_ context.Context, req resource.ConfigureRe
 }
 
 func (l *listItemResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	// Retrieve import ID and save to id attribute.
-	resource.ImportStatePassthroughID(ctx, path.Root("uri"), req, resp)
+	// Support import with two comma-separated values: list_uri,uri
+	parts := strings.SplitN(req.ID, ",", 2)
+	if len(parts) != 2 {
+		resp.Diagnostics.AddError("Invalid import format", "Expected import ID in the format 'list_uri,list_item_uri'")
+		return
+	}
+	resp.State.SetAttribute(ctx, path.Root("list_uri"), parts[0])
+	resp.State.SetAttribute(ctx, path.Root("uri"), parts[1])
 }

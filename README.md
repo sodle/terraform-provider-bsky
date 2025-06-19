@@ -25,7 +25,18 @@ Run the make file:
 > make
 ```
 
+## Running the tests
+The make file will run the tests, they require the following environment variable pointing to a testing PDS:
+```
+> BSKY_PDS_HOST=sodle.com
+> BSKY_HANDLE=root
+> BSKY_PASSWORD=*******
+> BSKY_PDS_ADMIN_PASSWORD=********
+> make
+```
+
 ## Debugging the provider
 https://developer.hashicorp.com/terraform/plugin/debugging#visual-studio-code
 
 https://developer.hashicorp.com/terraform/plugin/debugging#running-terraform-with-a-provider-in-debug-mode
+
