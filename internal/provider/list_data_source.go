@@ -114,71 +114,86 @@ func (d *listDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	uri := data.Uri.ValueString()
 
-	list, err := bsky.GraphGetList(ctx, d.client, "", 50, uri)
+	list, record, _, err := GetListFromURI(ctx, d.client, uri)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read List",
-			err.Error(),
+			"Could not read list URI "+uri+": "+err.Error(),
 		)
 		return
 	}
 
 	// Set all fields, using empty values for optional fields if nil
 	data.Avatar = types.StringValue("")
-	if list.List.Avatar != nil {
-		data.Avatar = types.StringValue(*list.List.Avatar)
+	if list.Avatar != nil {
+		data.Avatar = types.StringValue(fmt.Sprintf("%v", list.Avatar))
 	}
 
-	data.Cid = types.StringValue(list.List.Cid)
+	// Handle nil pointer for Cid
+	if record.Cid != nil {
+		data.Cid = types.StringValue(*record.Cid)
+	} else {
+		data.Cid = types.StringValue("")
+	}
 
 	data.Description = types.StringValue("")
-	if list.List.Description != nil {
-		data.Description = types.StringValue(*list.List.Description)
+	if list.Description != nil {
+		data.Description = types.StringValue(*list.Description)
 	}
 
 	data.ListItemCount = types.Int64Value(0)
-	if list.List.ListItemCount != nil {
-		data.ListItemCount = types.Int64Value(*list.List.ListItemCount)
-	}
+	// Note: ListItemCount may not be available from repo API
+	// We'll need to fetch list items separately
 
-	data.Name = types.StringValue(list.List.Name)
+	data.Name = types.StringValue(list.Name)
 
 	data.Purpose = types.StringValue("")
-	if list.List.Purpose != nil {
-		data.Purpose = types.StringValue(*list.List.Purpose)
+	if list.Purpose != nil {
+		data.Purpose = types.StringValue(*list.Purpose)
 	}
 
-	data.Uri = types.StringValue(list.List.Uri)
+	data.Uri = types.StringValue(uri)
 
 	// Initialize empty items slice to ensure it's never nil
 	data.Items = []listItemModel{}
 
-	for _, item := range list.Items {
-		listItemData := listItemModel{
-			Did: types.StringValue(item.Subject.Did),
-			Uri: types.StringValue(item.Uri),
+	// Use GraphGetList to get the items
+	listWithItems, err := bsky.GraphGetList(ctx, d.client, "", 50, uri)
+	if err == nil && listWithItems != nil {
+		// Update the list item count if available
+		if listWithItems.List.ListItemCount != nil {
+			data.ListItemCount = types.Int64Value(*listWithItems.List.ListItemCount)
 		}
 
-		data.Items = append(data.Items, listItemData)
-	}
-
-	for list.Cursor != nil {
-		list, err := bsky.GraphGetList(ctx, d.client, *list.Cursor, 50, uri)
-		if err != nil {
-			resp.Diagnostics.AddError(
-				"Unable to Read List",
-				err.Error(),
-			)
-			return
-		}
-
-		for _, item := range list.Items {
+		// Add the items
+		for _, item := range listWithItems.Items {
 			listItemData := listItemModel{
 				Did: types.StringValue(item.Subject.Did),
 				Uri: types.StringValue(item.Uri),
 			}
 
 			data.Items = append(data.Items, listItemData)
+		}
+
+		// Paginate through all items
+		for listWithItems.Cursor != nil {
+			listWithItems, err = bsky.GraphGetList(ctx, d.client, *listWithItems.Cursor, 50, uri)
+			if err != nil {
+				resp.Diagnostics.AddError(
+					"Unable to Read List",
+					err.Error(),
+				)
+				return
+			}
+
+			for _, item := range listWithItems.Items {
+				listItemData := listItemModel{
+					Did: types.StringValue(item.Subject.Did),
+					Uri: types.StringValue(item.Uri),
+				}
+
+				data.Items = append(data.Items, listItemData)
+			}
 		}
 	}
 

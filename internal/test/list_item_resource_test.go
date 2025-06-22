@@ -2,6 +2,7 @@ package test
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -9,6 +10,8 @@ import (
 )
 
 func TestAccListItemResource(t *testing.T) {
+	// Check if we should skip AppView-dependent tests
+	skipAppViewTests := os.Getenv("BSKY_SKIP_APPVIEW_TESTS") != ""
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
 			testProviderPreCheck(t)
@@ -23,9 +26,13 @@ func TestAccListItemResource(t *testing.T) {
 					resource.TestCheckResourceAttrSet("bsky_list_item.test", "subject_did"),
 				),
 			},
-			// Verify the item appears in the list data source
+			// Verify the item appears in the list data source (if not skipping AppView tests)
 			{
 				Config: testAccListItemResourceConfig() + testAccListDataSourceConfig(),
+				SkipFunc: func() (bool, error) {
+					// Skip this step if we're skipping AppView tests
+					return skipAppViewTests, nil
+				},
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.bsky_list.test", "list_item_count", "1"),
 					resource.TestCheckResourceAttrPair(

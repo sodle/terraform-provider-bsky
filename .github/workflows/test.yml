@@ -1,5 +1,5 @@
 name: Tests
-# This workflow sets up a PDS instance using Docker compose and runs the tests against it.
+# This workflow sets up a PDS instance using Docker compose and runs the acceptance tests against it.
 
 # The PDS instance is set up with Traefik for routing and TLS termination. This is required because
 # the pds-admin script uses HTTPS to create an admin account.
@@ -131,10 +131,12 @@ jobs:
           sudo update-ca-certificates
 
       - name: Start services with Docker Compose
+        id: start_pds
         run: |
-          docker-compose -f .github/workflows/docker/docker-compose.yml up -d
-          PDS_CONTAINER_ID=$(docker-compose -f .github/workflows/docker/docker-compose.yml ps -q pds)
+          docker compose -f .github/workflows/docker/docker-compose.yml up -d
+          PDS_CONTAINER_ID=$(docker compose -f .github/workflows/docker/docker-compose.yml ps -q pds)
           echo "PDS_CONTAINER_ID=$PDS_CONTAINER_ID" >> $GITHUB_ENV
+          echo "PDS_CONTAINER_ID=$PDS_CONTAINER_ID" >> $GITHUB_OUTPUT
 
       - name: Install workflow dependencies and update CA certificates in the PDS container
         run: |
@@ -181,8 +183,8 @@ jobs:
           exit 1
 
       - name: Show Bluesky PDS container logs
-        run: |
-          docker logs $PDS_CONTAINER_ID
+        if: steps.start_pds.outputs.PDS_CONTAINER_ID != ''
+        run: docker logs ${{ steps.start_pds.outputs.PDS_CONTAINER_ID }}
 
       - name: Create admin account
         run: |
@@ -202,8 +204,8 @@ jobs:
           fi
 
       - name: Show Bluesky PDS container logs
-        run: |
-          docker logs $PDS_CONTAINER_ID
+        if: steps.start_pds.outputs.PDS_CONTAINER_ID != ''
+        run: docker logs ${{ steps.start_pds.outputs.PDS_CONTAINER_ID }}
 
       - name: Show admin environment variables
         run: |
@@ -229,7 +231,13 @@ jobs:
           BSKY_HANDLE: ${{ env.BSKY_HANDLE }}
           BSKY_PASSWORD: ${{ env.BSKY_PASSWORD }}
           BSKY_ADMIN_PASSWORD: ${{ env.BSKY_ADMIN_PASSWORD }}
+          BSKY_SKIP_APPVIEW_TESTS: "1"
 
+      # uncomment to be able to debug the GitHub action by SSHing into the runner. See https://github.com/mxschmitt/action-tmate
+      # - name: Setup tmate session
+      #   if: always()
+      #   uses: mxschmitt/action-tmate@v3
+          
       - name: Show Bluesky PDS container logs
-        run: |
-          docker logs $PDS_CONTAINER_ID
+        if: steps.start_pds.outputs.PDS_CONTAINER_ID != ''
+        run: docker logs ${{ steps.start_pds.outputs.PDS_CONTAINER_ID }}

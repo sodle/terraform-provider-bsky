@@ -2,12 +2,15 @@ package test
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
 func TestAccListDataSource(t *testing.T) {
+	// Check if we should skip AppView-dependent tests
+	skipAppViewTests := os.Getenv("BSKY_SKIP_APPVIEW_TESTS") != ""
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
 			testProviderPreCheck(t)
@@ -20,7 +23,7 @@ func TestAccListDataSource(t *testing.T) {
 					resource.TestCheckResourceAttrSet("bsky_list.test", "uri"),
 				),
 			},
-			// Now read it with the data source and verify all attributes
+			// Now read it with the data source and verify basic attributes
 			{
 				Config: testAccListBaseConfig() + testAccListDataSourceConfig(),
 				Check: resource.ComposeAggregateTestCheckFunc(
@@ -32,6 +35,17 @@ func TestAccListDataSource(t *testing.T) {
 					resource.TestCheckResourceAttrSet("data.bsky_list.test", "cid"),
 					// Check optional attributes
 					resource.TestCheckResourceAttr("data.bsky_list.test", "avatar", ""),
+				),
+			},
+			// Check AppView-dependent attributes (empty list)
+			{
+				Config: testAccListBaseConfig() + testAccListDataSourceConfig(),
+				SkipFunc: func() (bool, error) {
+					// Skip this step if we're skipping AppView tests
+					return skipAppViewTests, nil
+				},
+				Check: resource.ComposeAggregateTestCheckFunc(
+					// Check AppView-dependent attributes
 					resource.TestCheckResourceAttr("data.bsky_list.test", "list_item_count", "0"),
 					// Check empty items array
 					resource.TestCheckResourceAttr("data.bsky_list.test", "items.#", "0"),
@@ -41,7 +55,7 @@ func TestAccListDataSource(t *testing.T) {
 			{
 				Config: testAccListBaseConfig() + testAccListDataSourceWithItemConfig(),
 			},
-			// Now read it again and verify the item appears
+			// Now read it again and verify basic attributes still match
 			{
 				Config: testAccListBaseConfig() + testAccListDataSourceWithItemConfig() + testAccListDataSourceConfig(),
 				Check: resource.ComposeAggregateTestCheckFunc(
@@ -51,6 +65,16 @@ func TestAccListDataSource(t *testing.T) {
 					resource.TestCheckResourceAttr("data.bsky_list.test", "purpose", "app.bsky.graph.defs#curatelist"),
 					resource.TestCheckResourceAttrSet("data.bsky_list.test", "uri"),
 					resource.TestCheckResourceAttrSet("data.bsky_list.test", "cid"),
+				),
+			},
+			// Check AppView-dependent attributes (with list item)
+			{
+				Config: testAccListBaseConfig() + testAccListDataSourceWithItemConfig() + testAccListDataSourceConfig(),
+				SkipFunc: func() (bool, error) {
+					// Skip this step if we're skipping AppView tests
+					return skipAppViewTests, nil
+				},
+				Check: resource.ComposeAggregateTestCheckFunc(
 					// Check the item count and list items
 					resource.TestCheckResourceAttr("data.bsky_list.test", "list_item_count", "1"),
 					resource.TestCheckResourceAttr("data.bsky_list.test", "items.#", "1"),
