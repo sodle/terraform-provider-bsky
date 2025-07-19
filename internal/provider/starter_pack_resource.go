@@ -205,11 +205,20 @@ func (l *starterPackResource) Update(ctx context.Context, req resource.UpdateReq
 		return
 	}
 
-	pack.Name = state.Name.ValueString()
-	pack.Description = state.Description.ValueStringPointer()
-	pack.List = state.ListUri.ValueString()
+	// Get the new values from the plan
+	var plan starterPackResourceModel
+	diags = req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
-	// Update existing list.
+	// Update the pack with new values from the plan
+	pack.Name = plan.Name.ValueString()
+	pack.Description = plan.Description.ValueStringPointer()
+	pack.List = plan.ListUri.ValueString()
+
+	// Update existing starter pack
 	putRecordInput := &atproto.RepoPutRecord_Input{
 		Collection: uri.Collection().String(),
 		Repo:       uri.Authority().String(),
@@ -227,6 +236,10 @@ func (l *starterPackResource) Update(ctx context.Context, req resource.UpdateReq
 		)
 		return
 	}
+
+	// Update state with new values
+	state.Name = plan.Name
+	state.Description = plan.Description
 
 	diags = resp.State.Set(ctx, state)
 	resp.Diagnostics.Append(diags...)

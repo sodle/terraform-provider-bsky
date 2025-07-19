@@ -194,6 +194,7 @@ func (p *bskyProvider) Configure(ctx context.Context, req provider.ConfigureRequ
 				"If the error is not clear, please contact the provider developers.\n\n"+
 				"XRPC client error: "+err.Error(),
 		)
+		return
 	}
 
 	client.Auth = &xrpc.AuthInfo{

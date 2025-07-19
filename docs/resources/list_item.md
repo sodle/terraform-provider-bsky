@@ -47,6 +47,6 @@ resource "bsky_list_item" "scoott" {
 Import is supported using the following syntax:
 
 ```shell
-# List item can be imported using the URI
-terraform import bsky_list_item.scoott "at://did:plc:7kkf4hujjl6wll6pewqahaex/app.bsky.graph.listitem/3lbqcyq3uzo2u"
+# List item can be imported using the format ListURI,ListItemURI.
+terraform import bsky_list_item.scoott "at://did:plc:7kkf4hujjl6wll6pewqahaex/app.bsky.graph.list/3lbo5zov45j2q,at://did:plc:7kkf4hujjl6wll6pewqahaex/app.bsky.graph.listitem/3lbqcyq3uzo2u"
 ```

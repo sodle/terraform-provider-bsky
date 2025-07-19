@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/bluesky-social/indigo/api/atproto"
@@ -127,51 +128,19 @@ func (l *listItemResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	var foundItem *bsky.GraphDefs_ListItemView
-
 	// Get refreshed list value from Bsky.
-	list, err := bsky.GraphGetList(ctx, l.client, "", 50, state.ListUri.ValueString())
+	listItem, _, _, err := GetListItemFromURI(ctx, l.client, state.Uri.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Unable to Read List",
-			err.Error(),
+			"Error reading list item",
+			"Could not read Bluesky list item URI "+state.Uri.ValueString()+": "+err.Error(),
 		)
 		return
 	}
 
-	for _, item := range list.Items {
-		if item.Uri == state.Uri.ValueString() {
-			foundItem = item
-			break
-		}
-	}
-
-	for foundItem == nil && list.Cursor != nil {
-		list, err := bsky.GraphGetList(ctx, l.client, "", 50, state.ListUri.ValueString())
-		if err != nil {
-			resp.Diagnostics.AddError(
-				"Unable to Read List",
-				err.Error(),
-			)
-			return
-		}
-
-		for _, item := range list.Items {
-			if item.Uri == state.Uri.ValueString() {
-				foundItem = item
-				break
-			}
-		}
-	}
-
-	if foundItem == nil {
-		resp.Diagnostics.AddError("List item not found", state.Uri.ValueString())
-		return
-	}
-
-	state.Uri = types.StringValue(foundItem.Uri)
-	state.ListUri = types.StringValue(list.List.Uri)
-	state.SubjectDid = types.StringValue(foundItem.Subject.Did)
+	state.Uri = types.StringValue(state.Uri.ValueString())
+	state.ListUri = types.StringValue(listItem.List)
+	state.SubjectDid = types.StringValue(listItem.Subject)
 
 	// Set refreshed state.
 	diags = resp.State.Set(ctx, &state)
@@ -242,6 +211,12 @@ func (l *listItemResource) Configure(_ context.Context, req resource.ConfigureRe
 }
 
 func (l *listItemResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	// Retrieve import ID and save to id attribute.
-	resource.ImportStatePassthroughID(ctx, path.Root("uri"), req, resp)
+	// Support import with two comma-separated values: list_uri,uri
+	parts := strings.SplitN(req.ID, ",", 2)
+	if len(parts) != 2 {
+		resp.Diagnostics.AddError("Invalid import format", "Expected import ID in the format 'list_uri,list_item_uri'")
+		return
+	}
+	resp.State.SetAttribute(ctx, path.Root("list_uri"), parts[0])
+	resp.State.SetAttribute(ctx, path.Root("uri"), parts[1])
 }

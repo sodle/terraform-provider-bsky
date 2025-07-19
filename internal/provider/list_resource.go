@@ -10,11 +10,13 @@ import (
 	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/bluesky-social/indigo/lex/util"
 	"github.com/bluesky-social/indigo/xrpc"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -71,6 +73,12 @@ func (r *listResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"purpose": schema.StringAttribute{
 				Required:            true,
 				MarkdownDescription: "Purpose of the list (moderation or curation) - must be `app.bsky.graph.defs#curatelist` or `app.bsky.graph.defs#modlist`.",
+				Validators: []validator.String{
+					stringvalidator.OneOf(
+						"app.bsky.graph.defs#curatelist",
+						"app.bsky.graph.defs#modlist",
+					),
+				},
 			},
 			"description": schema.StringAttribute{
 				Required:            true,
@@ -134,8 +142,8 @@ func (l *listResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	// Get refreshed list value from Bsky.
-	list, err := bsky.GraphGetList(ctx, l.client, "", 1, state.Uri.ValueString())
+	// Get and parse the list directly using the combined utility function
+	list, record, _, err := GetListFromURI(ctx, l.client, state.Uri.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error reading list",
@@ -144,12 +152,12 @@ func (l *listResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	// Overwrite with refreshed state.
-	state.Cid = types.StringValue(list.List.Cid)
-	state.Uri = types.StringValue(list.List.Uri)
-	state.Name = types.StringValue(list.List.Name)
-	state.Purpose = types.StringValue(*list.List.Purpose)
-	state.Description = types.StringValue(*list.List.Description)
+	// Overwrite with refreshed state using the repository record
+	state.Cid = types.StringValue(*record.Cid)
+	state.Uri = types.StringValue(state.Uri.ValueString()) // Keep the same URI
+	state.Name = types.StringValue(list.Name)
+	state.Purpose = types.StringValue(*list.Purpose)
+	state.Description = types.StringValue(*list.Description)
 
 	// Set refreshed state.
 	diags = resp.State.Set(ctx, &state)
@@ -169,28 +177,12 @@ func (l *listResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	// Generate API request body from plan.
-	uri, err := syntax.ParseATURI(plan.Uri.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Invalid list URI",
-			"Could not parse Bluesky list URI "+plan.Uri.ValueString()+": "+err.Error(),
-		)
-		return
-	}
-	record, err := atproto.RepoGetRecord(ctx, l.client, "", uri.Collection().String(), uri.Authority().String(), uri.RecordKey().String())
+	// Get the current list, record and parsed URI using the combined utility function
+	list, record, parsedUri, err := GetListFromURI(ctx, l.client, plan.Uri.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to retrieve list",
 			"Could not retrieve the current state of the list "+plan.Uri.ValueString()+": "+err.Error(),
-		)
-		return
-	}
-	list, ok := record.Value.Val.(*bsky.GraphList)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Failed to parse retrieved list",
-			"Could not cast the returned list into the expected type",
 		)
 		return
 	}
@@ -199,11 +191,11 @@ func (l *listResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	list.Purpose = plan.Purpose.ValueStringPointer()
 	list.Description = plan.Description.ValueStringPointer()
 
-	// Update existing list.
+	// Update existing list using the parsed URI
 	putRecordInput := &atproto.RepoPutRecord_Input{
-		Collection: uri.Collection().String(),
-		Repo:       uri.Authority().String(),
-		Rkey:       uri.RecordKey().String(),
+		Collection: parsedUri.Collection().String(),
+		Repo:       parsedUri.Authority().String(),
+		Rkey:       parsedUri.RecordKey().String(),
 		SwapRecord: record.Cid,
 		Record: &util.LexiconTypeDecoder{
 			Val: list,
@@ -238,7 +230,7 @@ func (l *listResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		return
 	}
 
-	// Delete existing list.
+	// Parse the URI to extract components for the repository API
 	uri, err := syntax.ParseATURI(state.Uri.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -286,4 +278,52 @@ func (l *listResource) Configure(_ context.Context, req resource.ConfigureReques
 func (l *listResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	// Retrieve import ID and save to id attribute.
 	resource.ImportStatePassthroughID(ctx, path.Root("uri"), req, resp)
+}
+
+func getRecordAndURIFromString(ctx context.Context, client *xrpc.Client, uri string) (*atproto.RepoGetRecord_Output, syntax.ATURI, error) {
+	parsedUri, err := syntax.ParseATURI(uri)
+	if err != nil {
+		return nil, parsedUri, fmt.Errorf("could not parse URI %s: %w", uri, err)
+	}
+
+	record, err := atproto.RepoGetRecord(ctx, client, "", parsedUri.Collection().String(), parsedUri.Authority().String(), parsedUri.RecordKey().String())
+	if err != nil {
+		return nil, parsedUri, fmt.Errorf("could not get record: %w", err)
+	}
+
+	if record.Cid == nil {
+		return nil, parsedUri, fmt.Errorf("record.Cid is nil")
+	}
+
+	return record, parsedUri, nil
+}
+
+func GetListFromURI(ctx context.Context, client *xrpc.Client, uri string) (*bsky.GraphList, *atproto.RepoGetRecord_Output, syntax.ATURI, error) {
+	record, parsedUri, err := getRecordAndURIFromString(ctx, client, uri)
+	if err != nil {
+		return nil, nil, parsedUri, fmt.Errorf("could not get record from URI %s: %w", uri, err)
+	}
+
+	// Extract the list from the record
+	list, ok := record.Value.Val.(*bsky.GraphList)
+	if !ok {
+		return nil, record, parsedUri, fmt.Errorf("could not cast record to GraphList")
+	}
+
+	return list, record, parsedUri, nil
+}
+
+func GetListItemFromURI(ctx context.Context, client *xrpc.Client, uri string) (*bsky.GraphListitem, *atproto.RepoGetRecord_Output, syntax.ATURI, error) {
+	record, parsedUri, err := getRecordAndURIFromString(ctx, client, uri)
+	if err != nil {
+		return nil, nil, parsedUri, fmt.Errorf("could not get record from URI %s: %w", uri, err)
+	}
+
+	// Extract the list item from the record
+	item, ok := record.Value.Val.(*bsky.GraphListitem)
+	if !ok {
+		return nil, record, parsedUri, fmt.Errorf("could not cast record to GraphListitem")
+	}
+
+	return item, record, parsedUri, nil
 }
