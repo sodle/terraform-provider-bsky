@@ -316,16 +316,7 @@ func (l *accountResource) Configure(_ context.Context, req resource.ConfigureReq
 
 	// Make a copy of the client without any Auth set to force the client to use the admin token from the Headers for all account requests.
 	// https://github.com/bluesky-social/indigo/issues/994
-	l.client = &xrpc.Client{
-		Host:      client.Host,
-		UserAgent: client.UserAgent,
-		Headers: map[string]string{
-			"Authorization": "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:"+*client.AdminToken)),
-		},
-		AdminToken: client.AdminToken,
-		Client:     client.Client,
-		Auth:       nil,
-	}
+	l.client = client
 }
 
 func (l *accountResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
