@@ -34,7 +34,8 @@ func NewAccountResource() resource.Resource {
 
 // accountResource is the resource implementation.
 type accountResource struct {
-	client *xrpc.Client
+	client          *xrpc.Client
+	anonymousClient *xrpc.Client
 }
 
 type accountResourceModel struct {
@@ -133,7 +134,7 @@ func (l *accountResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 
 	// Create new account.
-	createOutput, err := atproto.ServerCreateAccount(ctx, l.client, &createRecordInput)
+	createOutput, err := atproto.ServerCreateAccount(ctx, l.anonymousClient, &createRecordInput)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating account",
@@ -322,6 +323,17 @@ func (l *accountResource) Configure(_ context.Context, req resource.ConfigureReq
 		Headers: map[string]string{
 			"Authorization": "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:"+*client.AdminToken)),
 		},
+		AdminToken: client.AdminToken,
+		Client:     client.Client,
+		Auth:       nil,
+	}
+
+	// Make yet another copy of the client, this one without even an Auth header set,
+	// because the PDS doesn't expect account creations from an invite to be authenticated.
+	l.anonymousClient = &xrpc.Client{
+		Host:       client.Host,
+		UserAgent:  client.UserAgent,
+		Headers:    map[string]string{},
 		AdminToken: client.AdminToken,
 		Client:     client.Client,
 		Auth:       nil,
